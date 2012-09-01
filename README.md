@@ -1,4 +1,3 @@
-
 LiveCoder
 =========
 
@@ -19,3 +18,4 @@ From the console, launch the script:
   $ python livecoder.py
 
 
+Mwhahahahaha :)
