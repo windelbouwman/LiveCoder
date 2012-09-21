@@ -11,11 +11,24 @@ class CodeEdit(QTextEdit):
       self.completer.setWidget(self)
       self.completer.activated[str].connect(self.insertCompletion)
       self.wordModel = QStringListModel()
-      self.completer.setModel(self.wordModel)
+      self.filterModel = QSortFilterProxyModel()
+      self.filterModel.setFilterCaseSensitivity(Qt.CaseInsensitive)
+      self.filterModel.setSourceModel(self.wordModel)
+      self.completer.setModel(self.filterModel)
       self.symbolDict = {}
       self.wordModel.setStringList(keyword.kwlist)
+      self.searchWord = ""
    def keyPressEvent(self, e):
-      if self.completer.popup().isVisible() and e.key() in [Qt.Key_Escape, Qt.Key_Return, Qt.Key_Enter]:
+      if self.completer.popup().isVisible():
+         if e.key() in [Qt.Key_Escape, Qt.Key_Return, Qt.Key_Enter]:
+            e.ignore()
+            return
+         elif e.key() == Qt.Key_Backspace:
+            if len(self.searchWord) > 0:
+               self.searchWord = self.searchWord[:-1]
+         else:
+            self.searchWord = self.searchWord + e.text()
+         self.filterModel.setFilterFixedString(self.searchWord)
          e.ignore()
          return
       if e.key() == Qt.Key_Period:
@@ -29,7 +42,10 @@ class CodeEdit(QTextEdit):
          if cursymbol in self.symbolDict:
             words = self.symbolDict[cursymbol]
             self.wordModel.setStringList(words)
+         self.searchWord = ""
+         self.filterModel.setFilterFixedString(self.searchWord)
          self.completer.complete(cr)
+         #searchWord
       super(CodeEdit, self).keyPressEvent(e)
    def insertCompletion(self, completion):
       tc = self.textCursor()
@@ -72,6 +88,7 @@ class LiveCoder(QWidget):
       code = self.edit.toPlainText()
       myoutput = io.StringIO()
       oldstdout = sys.stdout
+      sys.stdout = myoutput
       globs = {}
       locs = {}
       succes = False
@@ -91,9 +108,9 @@ class LiveCoder(QWidget):
          for locname in locs:
             # Pass this as completion options.
             self.edit.symbolDict[locname] = dir(locs[locname])
-      self.outputText.clear()
       self.outputText.setPlainText(myoutput.getvalue())
       sys.stdout = oldstdout
+      myoutput.close()
    def setError(self, msg='', lineno=None):
       if msg:
          self.errorText.show()
